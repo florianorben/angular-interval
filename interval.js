@@ -59,12 +59,18 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			/**
 			 * pause job for X milliseconds
 			 * @param  {Number} pauseTime pause for x milliseconds
+			 * @param {Function} callback function to be called, once interval resumes
 			 * @chainable
 			 * @return {self}    
 			 */
-			self.pause = function(pauseTime) {
+			self.pause = function(pauseTime, callback) {
 				self.cancel();
-				setTimeout(self.start, pauseTime);
+				setTimeout(function() {
+					self.start();
+					if (angular.isFunction(callback)) {
+						callback();
+					}
+				}, pauseTime);
 				return self;
 			};
 			/**

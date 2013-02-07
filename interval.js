@@ -1,4 +1,4 @@
-angular.module('intervalApp').provider('$interval', function $intervalProvider() {
+angular.module('interval').provider('$interval', function $intervalProvider() {
 	'use strict';
 
 	var jobs = {},

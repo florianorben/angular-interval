@@ -192,7 +192,6 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			var job = new Job(fn || function() {}, delay || 0, 
 				maxExecutions !== 0 && angular.isNumber(maxExecutions) && maxExecutions > 0 ? maxExecutions : 0,
 				invokeApply);
-			console.log(providerSelf.autoSync)
 			return providerSelf.autoSync ? job.synchronize() : job;
 		}
 

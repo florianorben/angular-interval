@@ -42,7 +42,7 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 				if (jobs[id] && angular.isDefined(this.info().nextExecution)) return self;
 				if (jobs[id] && angular.isUndefined(this.info().nextExecution)) delete jobs[id];
 
-				status = 'STARTED';
+				// status = 'STARTED';
 				
 				id = setInterval(function() {
 					var i = 0,
@@ -97,8 +97,8 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			self.pause = function(pauseTime, callback) {
 				nextExecution = undefined;
 				clearInterval(id);
-				status = 'PAUSED';
-				$rootScope.$apply();
+				// status = 'PAUSED';
+				// $rootScope.$apply();
 				setTimeout(function() {
 					self.start();
 					if (angular.isFunction(callback)) {
@@ -114,8 +114,8 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			 * @return {self}
 			 */
 			self.stop = function() {
-				status = 'STOPPED';
-				$rootScope.$apply();
+				// status = 'STOPPED';
+				// $rootScope.$apply();
 				nextExecution = undefined;
 				clearInterval(id);
 				return self;
@@ -127,8 +127,8 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			 * @return {self}
 			 */
 			self.cancel = function() {
-				status = 'CANCELLED';
-				$rootScope.$apply();
+				// status = 'CANCELLED';
+				// $rootScope.$apply();
 				nextExecution = undefined;
 				clearInterval(id);
 				delete jobs[id];

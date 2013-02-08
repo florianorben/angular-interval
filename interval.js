@@ -11,13 +11,27 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 	this.autoSync = false;
 
 	this.$get = ['$exceptionHandler', '$rootScope', function $interval($exceptionHandler, $rootScope) {
+
+		/**
+		 * adds a new job to execute on given interval
+		 * @param {Function} fn            Function to execute
+		 * @param {Number}   [delay=0]         Re-Execute after X milliseconds 
+		 * @param {Number}   [maxExecutions=0] Maximum number of executions, 0 equals unlimited executions
+		 * @param {Boolean}   [invokeApply=true]   Trigger scope.$apply
+		 * @return {Job} Job
+		 */
 		function Job (fn, delay, maxExecutions, invokeApply) {
 			var id,
 				skipApply = (angular.isDefined(invokeApply) && !invokeApply),
 				self = this,
 				callbacks = [],
 				errCallbacks = [],
-				executions = 0;
+				executions = 0,
+				added = new Date().getTime(),
+				firstExecution = undefined,
+				nextExecution = undefined,
+				lastExecution = undefined,
+				status = '';
 
 			/**
 			 * start job
@@ -25,11 +39,26 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			 * @return {self}
 			 */
 			self.start = function() {
-				if (jobs[id]) return self;
+				if (jobs[id] && angular.isDefined(this.info().nextExecution)) return self;
+				if (jobs[id] && angular.isUndefined(this.info().nextExecution)) delete jobs[id];
 
+				status = 'STARTED';
+				
 				id = setInterval(function() {
 					var i = 0,
 						j = 0;
+
+					if (!firstExecution) {
+						firstExecution = new Date().getTime();
+					}
+					if (!nextExecution) {
+						nextExecution = new Date().getTime();
+					}
+
+					if (maxExecutions) {
+						lastExecution = nextExecution + (maxExecutions - executions) * delay;
+					}
+
 					try {
 						var returnValue = fn();
 						for (i; i < callbacks.length; i++) {
@@ -46,6 +75,8 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 						$exceptionHandler(e);
 					}
 					executions++;
+
+					nextExecution = nextExecution + delay;
 
 					if (maxExecutions > 0 && maxExecutions === executions) {
 						self.cancel();
@@ -64,7 +95,10 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 			 * @return {self}    
 			 */
 			self.pause = function(pauseTime, callback) {
-				self.cancel();
+				nextExecution = undefined;
+				clearInterval(id);
+				status = 'PAUSED';
+				$rootScope.$apply();
 				setTimeout(function() {
 					self.start();
 					if (angular.isFunction(callback)) {
@@ -73,15 +107,32 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 				}, pauseTime);
 				return self;
 			};
+
 			/**
-			 * cancel/stop job
+			 * stop job
+			 * @chainable
+			 * @return {self}
+			 */
+			self.stop = function() {
+				status = 'STOPPED';
+				$rootScope.$apply();
+				nextExecution = undefined;
+				clearInterval(id);
+				return self;
+			};
+
+			/**
+			 * cancel job
 			 * @chainable
 			 * @return {self}
 			 */
 			self.cancel = function() {
+				status = 'CANCELLED';
+				$rootScope.$apply();
+				nextExecution = undefined;
 				clearInterval(id);
 				delete jobs[id];
-				return self;
+				return null;
 			};
 			/**
 			 * add a callback to execute on each tick
@@ -111,7 +162,7 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 				var temp = [];
 				angular.forEach(jobs, function(j) {
 					temp.push(j);
-					j.cancel();
+					j.stop();
 				});
 				angular.forEach(temp, function(t) {
 					t.start();
@@ -119,24 +170,40 @@ angular.module('interval', []).provider('$interval', function $intervalProvider(
 				return self;
 			};
 
+			/**
+			 * return meta information about current job
+			 * @return {Object} information
+			 */
+			self.info = function() {
+				return {
+					added: added,
+					firstExecution: firstExecution,
+					nextExecution: nextExecution,
+					lastExecution: lastExecution,
+					status: status
+				}
+			};
+
 			self.start();
 		}
 		
-		/**
-		 * adds a new job to execute on given interval
-		 * @param {Function} fn            Function to execute
-		 * @param {Number}   [delay=0]         Re-Execute after X milliseconds 
-		 * @param {Number}   [maxExecutions=0] Maximum number of executions, 0 equals unlimited executions
-		 * @param {Boolean}   [invokeApply=true]   Trigger scope.$apply
-		 * @return {Job} Job
-		 */
-		function addJob (fn, delay, maxExecutions,invokeApply) {
+
+		function JobManager (fn, delay, maxExecutions,invokeApply) {
 			var job = new Job(fn || function() {}, delay || 0, 
 				maxExecutions !== 0 && angular.isNumber(maxExecutions) && maxExecutions > 0 ? maxExecutions : 0,
 				invokeApply);
+			console.log(providerSelf.autoSync)
 			return providerSelf.autoSync ? job.synchronize() : job;
 		}
 
-		return addJob;
+		/**
+		 * return a list of all started, paused and stopped jobs
+		 * @return {Object} list of jobs
+		 */
+		JobManager.getJobs = function () {
+			return jobs;
+		}
+
+		return JobManager;
 	}];
 });
